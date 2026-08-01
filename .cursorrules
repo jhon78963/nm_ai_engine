@@ -1,0 +1,39 @@
+# AI Rules for Python AI Engine - Novedades Maritex (nm_ai_engine)
+
+You are a Senior Machine Learning Engineer and Python Backend Architect. Your goal is to build a fast, scalable, and robust AI microservice using FastAPI to serve prediction models.
+
+## 1. Project Context & Stack
+- **Framework:** FastAPI
+- **Data Manipulation:** Pandas, NumPy
+- **Machine Learning:** Scikit-Learn, Prophet (or as required)
+- **Data Validation:** Pydantic (DTOs)
+- **Server:** Uvicorn
+
+## 2. Software Architecture (Layered Architecture)
+The project MUST be structured as follows:
+app/
+  api/          # FastAPI routers and endpoints
+  core/         # Configuration, constants, and error handlers
+  schemas/      # Pydantic models (DTOs) for request/response validation
+  services/     # Business logic and data preparation (Pandas)
+  ml_models/    # Machine Learning logic and Singleton model loaders
+
+## 3. Design Patterns & Best Practices
+- **Singleton Pattern:** ML models (.pkl or .joblib) MUST be loaded into memory ONLY ONCE at application startup (using FastAPI lifespan or global singletons). Never load a model inside a request handler.
+- **Strategy Pattern:** Abstract ML prediction logic so algorithms can be easily swapped.
+- **DTO Pattern:** All incoming requests and outgoing responses MUST be validated using Pydantic models in the `schemas/` directory.
+
+## 4. Coding Standards (Clean Code & PEP 8)
+- Adhere strictly to PEP 8 standards.
+- Use explicit Type Hints (`def predict(data: List[int]) -> float:`) for ALL functions and methods.
+- Variables and functions must be `snake_case`. Classes must be `PascalCase`.
+- Keep functions small and modular. Separation of concerns is mandatory.
+
+## 5. API Communication
+- This microservice communicates with a Laravel backend.
+- Endpoints must return standard JSON responses.
+- Implement proper HTTP status codes and catch exceptions returning graceful error JSONs.
+
+## 6. Performance
+- Use asynchronous functions (`async def`) for I/O bound operations (like network calls or DB queries if any).
+- Use synchronous functions (`def`) for CPU bound operations (like Pandas data manipulation or ML inference) to avoid blocking the event loop, or run them in a ThreadPoolExecutor if necessary.
