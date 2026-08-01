@@ -37,7 +37,7 @@ app.add_middleware(
     allow_headers=["X-API-Key", "Content-Type"],
 )
 
-app.include_router(predictions_router, prefix="/api/v1")
+app.include_router(predictions_router)
 
 
 def custom_openapi() -> dict:

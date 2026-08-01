@@ -9,10 +9,14 @@ from app.schemas.prediction_schema import (
     PurchasePredictionResponse,
 )
 
-router = APIRouter(tags=["Predictions"], dependencies=[Depends(verify_api_key)])
+router = APIRouter(prefix="/api/v1/predict", tags=["Predictions"])
 
 
-@router.post("/predict/price", response_model=PriceOptimizationResponse)
+@router.post(
+    "/price",
+    response_model=PriceOptimizationResponse,
+    dependencies=[Depends(verify_api_key)],
+)
 def predict_price(request: PriceOptimizationRequest) -> PriceOptimizationResponse:
     """
     Devuelve el precio sugerido y márgenes para un producto.
@@ -29,7 +33,11 @@ def predict_price(request: PriceOptimizationRequest) -> PriceOptimizationRespons
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
-@router.post("/predict/demand", response_model=PurchasePredictionResponse)
+@router.post(
+    "/demand",
+    response_model=PurchasePredictionResponse,
+    dependencies=[Depends(verify_api_key)],
+)
 def predict_demand(request: PurchasePredictionRequest) -> PurchasePredictionResponse:
     """
     Proyecta ventas y sugiere cantidad de restock para un producto.
