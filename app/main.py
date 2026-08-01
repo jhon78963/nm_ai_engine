@@ -4,12 +4,15 @@ from typing import AsyncGenerator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.predictions import router as predictions_router
+from app.ml_models.predictor import DemandForecaster, PriceOptimizer
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    # Startup: aquí se cargarán los modelos ML como singletons
+    PriceOptimizer()
+    DemandForecaster()
     yield
-    # Shutdown: liberar recursos si es necesario
 
 
 app = FastAPI(
@@ -26,6 +29,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(predictions_router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["Health"])
