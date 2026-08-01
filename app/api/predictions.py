@@ -8,7 +8,6 @@ from app.schemas.prediction_schema import (
     PurchasePredictionRequest,
     PurchasePredictionResponse,
 )
-from app.services.data_processor import DataProcessor
 
 router = APIRouter(tags=["Predictions"], dependencies=[Depends(verify_api_key)])
 
@@ -25,26 +24,9 @@ def predict_price(request: PriceOptimizationRequest) -> PriceOptimizationRespons
     - sales_last_month <- SUM(sale_details.quantity) último mes
     """
     try:
-        dataframe = DataProcessor.price_optimization_to_dataframe(request)
-        predictions = PriceOptimizer().predict(dataframe)
+        return PriceOptimizer().predict(request)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-
-    prediction = predictions[0]
-    current_cost = prediction["current_cost"]
-    suggested_price = prediction["suggested_price"]
-    minimum_price = round(current_cost * 1.05, 2)
-    expected_margin_increase = round(
-        ((suggested_price - minimum_price) / minimum_price * 100) if minimum_price > 0 else 0.0,
-        2,
-    )
-
-    return PriceOptimizationResponse(
-        product_id=prediction["product_id"],
-        suggested_price=suggested_price,
-        minimum_price=minimum_price,
-        expected_margin_increase=expected_margin_increase,
-    )
 
 
 @router.post("/predict/demand", response_model=PurchasePredictionResponse)
@@ -58,13 +40,6 @@ def predict_demand(request: PurchasePredictionRequest) -> PurchasePredictionResp
     - horizon_days  <- días a proyectar (por defecto 30)
     """
     try:
-        dataframe = DataProcessor.purchase_prediction_to_dataframe(request)
-        result = DemandForecaster().predict_restock(dataframe)
+        return DemandForecaster().predict(request)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-
-    return PurchasePredictionResponse(
-        product_id=result["product_id"],
-        projected_sales=result["projected_sales"],
-        suggested_purchase_quantity=result["suggested_purchase_quantity"],
-    )
