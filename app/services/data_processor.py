@@ -12,54 +12,46 @@ class DataProcessor:
     """Convierte DTOs validados del backend Laravel en DataFrames listos para ML."""
 
     DEFAULT_CATEGORY: str = "Sin categoría"
-    DATE_COLUMN: str = "date"
-    QUANTITY_COLUMN: str = "quantity"
 
     @staticmethod
     def price_optimization_to_dataframe(
         request: PriceOptimizationRequest,
     ) -> pd.DataFrame:
         """
-        Transforma productos del backend Laravel en un DataFrame para optimización de precios.
+        Transforma un producto de nm-backend en un DataFrame de una fila para Ridge.
 
-        Mapeo esperado desde nm-backend:
-        - product_id  <- products.id
-        - current_cost <- product_size.purchase_price (nullable -> 0.0)
-        - category    <- genders.name (nullable -> "Sin categoría")
-        - sales_last_month <- SUM(sale_details.quantity) del último mes
+        Columnas resultantes: product_id, current_cost, category, sales_last_month
         """
-        records = [product.model_dump() for product in request.products]
-        dataframe = pd.DataFrame(records)
-
-        return DataProcessor._sanitize_price_optimization_dataframe(dataframe)
+        record = request.model_dump()
+        dataframe = pd.DataFrame([record])
+        return DataProcessor._sanitize_price_dataframe(dataframe)
 
     @staticmethod
     def purchase_prediction_to_dataframe(
         request: PurchasePredictionRequest,
     ) -> pd.DataFrame:
         """
-        Transforma el historial de ventas del backend Laravel en un DataFrame temporal.
+        Transforma el request de restock en un DataFrame de una fila.
 
-        Mapeo esperado desde nm-backend:
-        - product_id <- products.id
-        - date       <- sales.creation_time (YYYY-MM-DD o ISO-8601)
-        - quantity   <- SUM(sale_details.quantity) agrupado por día
+        Columnas resultantes: product_id, current_stock, horizon_days
+
+        Nota: la proyección de ventas se calculará en DemandForecaster.
+        Cuando esté disponible la conexión a BD, este método enriquecerá
+        el DataFrame con el historial de ventas de sale_details.
         """
-        records = [entry.model_dump() for entry in request.sales_history]
-        dataframe = pd.DataFrame(records)
-        dataframe["product_id"] = request.product_id
+        record = request.model_dump()
+        dataframe = pd.DataFrame([record])
+        return DataProcessor._sanitize_purchase_dataframe(dataframe)
 
-        return DataProcessor._sanitize_purchase_prediction_dataframe(dataframe)
+    # ------------------------------------------------------------------
+    # Métodos privados de saneamiento
+    # ------------------------------------------------------------------
 
     @staticmethod
-    def _sanitize_price_optimization_dataframe(dataframe: pd.DataFrame) -> pd.DataFrame:
-        expected_columns = [
-            "product_id",
-            "current_cost",
-            "category",
-            "sales_last_month",
-        ]
-        sanitized = dataframe.reindex(columns=expected_columns).copy()
+    def _sanitize_price_dataframe(dataframe: pd.DataFrame) -> pd.DataFrame:
+        sanitized = dataframe.reindex(
+            columns=["product_id", "current_cost", "category", "sales_last_month"]
+        ).copy()
 
         sanitized["product_id"] = (
             pd.to_numeric(sanitized["product_id"], errors="coerce")
@@ -87,57 +79,25 @@ class DataProcessor:
         return sanitized.reset_index(drop=True)
 
     @staticmethod
-    def _sanitize_purchase_prediction_dataframe(dataframe: pd.DataFrame) -> pd.DataFrame:
-        expected_columns = ["product_id", DataProcessor.DATE_COLUMN, DataProcessor.QUANTITY_COLUMN]
-        sanitized = dataframe.reindex(columns=expected_columns).copy()
+    def _sanitize_purchase_dataframe(dataframe: pd.DataFrame) -> pd.DataFrame:
+        sanitized = dataframe.reindex(
+            columns=["product_id", "current_stock", "horizon_days"]
+        ).copy()
 
         sanitized["product_id"] = (
             pd.to_numeric(sanitized["product_id"], errors="coerce")
             .fillna(0)
             .astype("int64")
         )
-        sanitized[DataProcessor.DATE_COLUMN] = DataProcessor._parse_dates(
-            sanitized[DataProcessor.DATE_COLUMN],
-        )
-        sanitized[DataProcessor.QUANTITY_COLUMN] = (
-            pd.to_numeric(sanitized[DataProcessor.QUANTITY_COLUMN], errors="coerce")
+        sanitized["current_stock"] = (
+            pd.to_numeric(sanitized["current_stock"], errors="coerce")
             .fillna(0)
             .astype("int64")
         )
-
-        sanitized = sanitized.dropna(subset=[DataProcessor.DATE_COLUMN])
-
-        if sanitized.empty:
-            raise ValueError(
-                "No se encontraron fechas válidas en sales_history. "
-                "El backend debe enviar fechas en formato YYYY-MM-DD o ISO-8601.",
-            )
-
-        sanitized = (
-            sanitized.groupby(
-                ["product_id", DataProcessor.DATE_COLUMN],
-                as_index=False,
-            )[DataProcessor.QUANTITY_COLUMN]
-            .sum()
-            .sort_values(DataProcessor.DATE_COLUMN)
-            .reset_index(drop=True)
+        sanitized["horizon_days"] = (
+            pd.to_numeric(sanitized["horizon_days"], errors="coerce")
+            .fillna(30)
+            .astype("int64")
         )
 
-        return sanitized
-
-    @staticmethod
-    def _parse_dates(series: pd.Series) -> pd.Series:
-        """
-        Normaliza fechas enviadas por Laravel.
-
-        Soporta:
-        - date objects (post-validación Pydantic)
-        - YYYY-MM-DD
-        - ISO-8601 (sales.creation_time?->toIso8601String())
-        """
-        parsed_dates = pd.to_datetime(series, errors="coerce", utc=False)
-
-        if parsed_dates.dt.tz is not None:
-            parsed_dates = parsed_dates.dt.tz_convert(None)
-
-        return parsed_dates.dt.normalize()
+        return sanitized.reset_index(drop=True)

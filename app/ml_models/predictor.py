@@ -37,6 +37,12 @@ class DemandForecast(TypedDict):
     predictions: list[DemandForecastEntry]
 
 
+class RestockPrediction(TypedDict):
+    product_id: int
+    projected_sales: int
+    suggested_purchase_quantity: int
+
+
 # ---------------------------------------------------------------------------
 # Singleton: PriceOptimizer
 # ---------------------------------------------------------------------------
@@ -272,4 +278,47 @@ class DemandForecaster:
             product_id=product_id,
             forecast_days=forecast_days,
             predictions=predictions,
+        )
+
+    def predict_restock(self, dataframe: pd.DataFrame) -> RestockPrediction:
+        """
+        Proyecta ventas y calcula la cantidad sugerida de restock.
+
+        Recibe un DataFrame de una fila con columnas: product_id, current_stock, horizon_days.
+        Usa una tasa diaria sintética de venta mientras no haya conexión a BD.
+
+        Una vez disponible DATABASE_URL, este método consultará sale_details para
+        calcular la tasa real de ventas del producto.
+
+        Args:
+            dataframe: Salida de DataProcessor.purchase_prediction_to_dataframe().
+
+        Returns:
+            RestockPrediction con projected_sales y suggested_purchase_quantity.
+        """
+        row = dataframe.iloc[0]
+        product_id = int(row["product_id"])
+        current_stock = int(row["current_stock"])
+        horizon_days = int(row["horizon_days"])
+
+        # Tasa diaria sintética — placeholder hasta integración con sale_details
+        # Será reemplazado por: SELECT AVG(daily_qty) FROM sale_details WHERE product_id = ?
+        _SYNTHETIC_DAILY_RATE: float = 5.0
+        projected_sales = max(0, round(_SYNTHETIC_DAILY_RATE * horizon_days))
+        suggested_quantity = max(0, projected_sales - current_stock)
+
+        logger.info(
+            "DemandForecaster.predict_restock: product_id=%d stock=%d "
+            "horizon=%d days projected=%d suggest=%d",
+            product_id,
+            current_stock,
+            horizon_days,
+            projected_sales,
+            suggested_quantity,
+        )
+
+        return RestockPrediction(
+            product_id=product_id,
+            projected_sales=projected_sales,
+            suggested_purchase_quantity=suggested_quantity,
         )
