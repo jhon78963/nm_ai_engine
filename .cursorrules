@@ -37,3 +37,8 @@ app/
 ## 6. Performance
 - Use asynchronous functions (`async def`) for I/O bound operations (like network calls or DB queries if any).
 - Use synchronous functions (`def`) for CPU bound operations (like Pandas data manipulation or ML inference) to avoid blocking the event loop, or run them in a ThreadPoolExecutor if necessary.
+
+## 7. Git & Version Control
+- When generating git commands, writing commit messages, or performing any version control actions, strictly DO NOT append "Co-authored-by", "Cursor", or any AI bot signatures.
+- All commits must appear as if they were written 100% by the human developer.
+- Use standard commit formats (e.g., `git commit -m "feat: your message"`) without any trailing metadata about the AI.
