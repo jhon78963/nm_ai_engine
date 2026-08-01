@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from app.core.security import verify_api_key
 from app.ml_models.predictor import DemandForecaster, DemandForecast, PriceOptimizer
 from app.schemas.prediction_schema import (
     PriceOptimizationRequest,
@@ -7,7 +8,7 @@ from app.schemas.prediction_schema import (
 )
 from app.services.data_processor import DataProcessor
 
-router = APIRouter(tags=["Predictions"])
+router = APIRouter(tags=["Predictions"], dependencies=[Depends(verify_api_key)])
 
 
 @router.post("/predict/price")

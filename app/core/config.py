@@ -24,9 +24,8 @@ class Settings(BaseSettings):
         description="URL de conexión para Pandas/SQLAlchemy (misma BD que nm-backend Laravel).",
     )
     api_key: str = Field(
-        default="change-me-in-production",
         validation_alias="API_KEY",
-        description="Clave compartida con nm-backend para proteger los endpoints.",
+        description="Clave compartida con nm-backend para proteger los endpoints. OBLIGATORIO.",
     )
 
 
