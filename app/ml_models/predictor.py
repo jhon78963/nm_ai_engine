@@ -11,10 +11,20 @@ from app.schemas.prediction_schema import (
 
 logger = logging.getLogger(__name__)
 
-_HIGH_VOLUME_THRESHOLD: int = 50
-_HIGH_VOLUME_MARGIN: float = 0.10
-_LOW_VOLUME_MARGIN: float = 0.05
-_MINIMUM_MARGIN: float = 0.05
+# Retail ropa: margen mínimo viable sobre costo (ej. costo 15 → piso ~27)
+_MIN_MARKUP_RATE: float = 0.80
+# Markup objetivo cuando no hay precio de venta de referencia
+_DEFAULT_MARKUP_RATE: float = 1.53
+
+# Ajuste sobre el precio actual según rotación mensual (unidades vendidas / 30 días)
+_VELOCITY_RULES: tuple[tuple[int, float, str], ...] = (
+    (30, 1.03, "Alta rotación: se sugiere un leve incremento (+3%)."),
+    (15, 1.0, "Rotación saludable: mantener el precio actual."),
+    (5, 0.95, "Rotación moderada: ligero ajuste a la baja (-5%) para estimular demanda."),
+    (1, 0.90, "Baja rotación: descuento moderado (-10%) sin comprometer el margen mínimo."),
+    (0, 0.85, "Sin ventas recientes: descuento más agresivo (-15%) respetando el piso de margen."),
+)
+
 _DAILY_SALES_RATE: int = 2
 
 
@@ -22,12 +32,10 @@ class PriceOptimizer:
     """
     Singleton — instanciado una sola vez al arrancar FastAPI.
 
-    Optimiza el precio de venta de un producto según su volumen de ventas
-    del último mes. Placeholder hasta conectar la BD y cargar un modelo .pkl.
-
-    Regla simulada:
-    - sales_last_month > 50  → +10% sobre current_cost
-    - sales_last_month <= 50 → +5%  sobre current_cost
+    Optimiza precio de venta para retail/wholesale de ropa usando:
+    - costo de compra como piso de margen
+    - precio de venta actual como ancla comercial
+    - rotación de los últimos 30 días como señal de demanda
     """
 
     _instance: PriceOptimizer | None = None
@@ -39,23 +47,17 @@ class PriceOptimizer:
         return cls._instance
 
     def predict(self, request: PriceOptimizationRequest) -> PriceOptimizationResponse:
-        """
-        Calcula el precio sugerido para un producto.
+        minimum_price = round(request.current_cost * (1 + _MIN_MARKUP_RATE), 2)
 
-        Args:
-            request: Datos del producto enviados por nm-backend (Laravel).
-
-        Returns:
-            PriceOptimizationResponse con precio sugerido y márgenes calculados.
-        """
-        margin_rate = (
-            _HIGH_VOLUME_MARGIN
-            if request.sales_last_month > _HIGH_VOLUME_THRESHOLD
-            else _LOW_VOLUME_MARGIN
+        anchor_price = (
+            request.current_sale_price
+            if request.current_sale_price > 0
+            else round(request.current_cost * (1 + _DEFAULT_MARKUP_RATE), 2)
         )
 
-        suggested_price = round(request.current_cost * (1 + margin_rate), 2)
-        minimum_price = round(request.current_cost * (1 + _MINIMUM_MARGIN), 2)
+        adjustment, summary = self._velocity_adjustment(request.sales_last_month)
+        suggested_price = round(max(minimum_price, anchor_price * adjustment), 2)
+
         expected_margin_increase = round(
             ((suggested_price - minimum_price) / minimum_price * 100)
             if minimum_price > 0
@@ -63,12 +65,23 @@ class PriceOptimizer:
             2,
         )
 
+        markup_over_cost = round(
+            ((suggested_price - request.current_cost) / request.current_cost * 100)
+            if request.current_cost > 0
+            else 0.0,
+            2,
+        )
+
         logger.info(
-            "PriceOptimizer: product_id=%d sales=%d margin=%.0f%% suggested=%.2f",
+            "PriceOptimizer: product_id=%d cost=%.2f sale=%.2f sales=%d "
+            "min=%.2f suggested=%.2f markup=%.1f%%",
             request.product_id,
+            request.current_cost,
+            request.current_sale_price,
             request.sales_last_month,
-            margin_rate * 100,
+            minimum_price,
             suggested_price,
+            markup_over_cost,
         )
 
         return PriceOptimizationResponse(
@@ -76,7 +89,17 @@ class PriceOptimizer:
             suggested_price=suggested_price,
             minimum_price=minimum_price,
             expected_margin_increase=expected_margin_increase,
+            markup_over_cost_percent=markup_over_cost,
+            recommendation_summary=summary,
         )
+
+    @staticmethod
+    def _velocity_adjustment(sales_last_month: int) -> tuple[float, str]:
+        for threshold, multiplier, summary in _VELOCITY_RULES:
+            if sales_last_month >= threshold:
+                return multiplier, summary
+
+        return _VELOCITY_RULES[-1][1], _VELOCITY_RULES[-1][2]
 
 
 class DemandForecaster:
@@ -100,15 +123,6 @@ class DemandForecaster:
         return cls._instance
 
     def predict(self, request: PurchasePredictionRequest) -> PurchasePredictionResponse:
-        """
-        Proyecta ventas y calcula la cantidad sugerida de compra.
-
-        Args:
-            request: Datos de stock y horizonte enviados por nm-backend (Laravel).
-
-        Returns:
-            PurchasePredictionResponse con proyección y cantidad sugerida.
-        """
         projected_sales = request.horizon_days * _DAILY_SALES_RATE
         suggested_purchase_quantity = max(0, projected_sales - request.current_stock)
 

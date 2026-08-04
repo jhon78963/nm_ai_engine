@@ -21,6 +21,11 @@ class PriceOptimizationRequest(BaseModel):
 
     product_id: int = Field(..., gt=0, description="Identificador único del producto")
     current_cost: float = Field(..., ge=0.0, description="Costo actual del producto")
+    current_sale_price: float = Field(
+        ...,
+        ge=0.0,
+        description="Precio de venta actual en catálogo (product_size.sale_price)",
+    )
     category: str = Field(..., min_length=1, description="Categoría (genders.name)")
     sales_last_month: int = Field(..., ge=0, description="Ventas totales del último mes")
 
@@ -60,6 +65,12 @@ class PriceOptimizationResponse(BaseModel):
     )
     expected_margin_increase: float = Field(
         ..., description="Incremento de margen esperado sobre el mínimo viable (%)"
+    )
+    markup_over_cost_percent: float = Field(
+        ..., description="Margen bruto sugerido sobre el costo (%)"
+    )
+    recommendation_summary: str = Field(
+        ..., description="Resumen legible de la estrategia de precio aplicada"
     )
 
 
