@@ -5,6 +5,10 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
+DATA_DIR = BASE_DIR / "data"
+MODELS_DIR = BASE_DIR / "models"
+DEMAND_MODELS_DIR = MODELS_DIR / "demand"
+PRICE_MODELS_DIR = MODELS_DIR / "price"
 
 
 class Settings(BaseSettings):
@@ -26,6 +30,21 @@ class Settings(BaseSettings):
     api_key: str = Field(
         validation_alias="API_KEY",
         description="Clave compartida con nm-backend para proteger los endpoints. OBLIGATORIO.",
+    )
+    min_demand_history_days: int = Field(
+        default=30,
+        validation_alias="MIN_DEMAND_HISTORY_DAYS",
+        description="Días mínimos de historial para entrenar Prophet por producto.",
+    )
+    min_demand_total_sales: int = Field(
+        default=5,
+        validation_alias="MIN_DEMAND_TOTAL_SALES",
+        description="Unidades vendidas mínimas en el historial para entrenar Prophet.",
+    )
+    min_price_training_rows: int = Field(
+        default=10,
+        validation_alias="MIN_PRICE_TRAINING_ROWS",
+        description="Filas mínimas para entrenar el modelo Ridge de precios.",
     )
 
 

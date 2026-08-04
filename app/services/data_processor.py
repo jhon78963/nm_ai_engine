@@ -50,7 +50,16 @@ class DataProcessor:
     @staticmethod
     def _sanitize_price_dataframe(dataframe: pd.DataFrame) -> pd.DataFrame:
         sanitized = dataframe.reindex(
-            columns=["product_id", "current_cost", "category", "sales_last_month"]
+            columns=[
+                "product_id",
+                "current_cost",
+                "category",
+                "sales_last_month",
+                "product_age_days",
+                "days_since_last_sale",
+                "total_sales_all_time",
+                "current_stock",
+            ]
         ).copy()
 
         sanitized["product_id"] = (
@@ -75,6 +84,17 @@ class DataProcessor:
             .fillna(0)
             .astype("int64")
         )
+        for column in (
+            "product_age_days",
+            "days_since_last_sale",
+            "total_sales_all_time",
+            "current_stock",
+        ):
+            sanitized[column] = (
+                pd.to_numeric(sanitized[column], errors="coerce")
+                .fillna(0)
+                .astype("int64")
+            )
 
         return sanitized.reset_index(drop=True)
 

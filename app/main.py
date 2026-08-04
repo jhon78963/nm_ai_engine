@@ -8,12 +8,14 @@ from fastapi.openapi.utils import get_openapi
 from app.api.predictions import router as predictions_router
 from app.core.config import get_settings
 from app.ml_models.predictor import DemandForecaster, PriceOptimizer
+from app.ml_models.registry import get_registry
 
 settings = get_settings()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    get_registry().load_all()
     PriceOptimizer()
     DemandForecaster()
     yield
@@ -66,9 +68,12 @@ app.openapi = custom_openapi  # type: ignore[method-assign]
 
 
 @app.get("/health", tags=["Health"])
-async def health_check() -> dict[str, str]:
+async def health_check() -> dict[str, str | int | bool]:
+    registry = get_registry()
     return {
         "status": "ok",
         "message": "Motor de IA encendido",
         "environment": settings.environment,
+        "demand_models_loaded": registry.demand_model_count,
+        "price_model_loaded": registry.has_price_model,
     }

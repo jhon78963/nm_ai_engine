@@ -1,0 +1,52 @@
+════════════════════════════════════════════════════════════
+  EVALUACIÓN DEMANDA — Croston/SBA + Prophet vs Baseline
+════════════════════════════════════════════════════════════
+  Productos evaluados  : 144 / 215 (71 omitidos)
+  Series intermitentes : 144  →  Croston/SBA
+  Series regulares     : 0  →  Prophet
+
+  ── Sistema híbrido (modelo seleccionado por producto) ──
+  MAPE promedio        : 77.3 %  (mediana 86.8 %)
+  SMAPE promedio       : 195.6 %
+  MAE promedio         : 0.336 u/día
+
+  ── Calidad por producto (modelo usado) ──
+  Excelente  (≤ 20%)   : 10 productos
+  Bueno      (21–40%)  : 6 productos
+  Aceptable  (41–60%)  : 8 productos
+  Débil      (> 60%)   : 120 productos
+
+  ── Comparación de algoritmos ──
+  MAPE Baseline (2u/d) : 84.4 %
+  MAPE Croston/SBA     : 77.3 %  (n=144)
+  MAPE Prophet         : 96.6 %  (n=144)
+  MAPE Sistema híbrido : 77.3 %
+  Mejora vs Baseline   : +8.4 % ✓
+════════════════════════════════════════════════════════════
+
+════════════════════════════════════════════════════════════
+  EVALUACIÓN PRECIO — Ridge Leave-One-Out
+════════════════════════════════════════════════════════════
+  Productos evaluados  : 267
+
+  ── Métricas out-of-sample ──
+  MAE                  : S/ 4.35 por producto
+  Error mediano        : S/ 3.15
+  RMSE                 : S/ 6.20
+  MAPE                 : 8.6 %
+
+  ── Tolerancia del error ──
+  Error ≤ 5%           : 109 / 267 productos (41%)
+  Error ≤ 10%          : 179 / 267 productos (67%)
+  Error ≤ 20%          : 243 / 267 productos (91%)
+════════════════════════════════════════════════════════════
+
+  ── Interpretación para tesis / reporte ejecutivo ──
+  Demanda  : PRECISIÓN LIMITADA — complementar con juicio experto
+           MAPE = 77.3 %  → margen de error medio por producto en 30 días
+  Precio   : ALTA — el modelo replica bien los precios del catálogo
+           MAPE = 8.6 %  → diferencia media entre precio sugerido y catálogo
+
+  Nota: las métricas son out-of-sample (datos no vistos durante
+  el entrenamiento), válidas para reportar en resultados de tesis.
+════════════════════════════════════════════════════════════
